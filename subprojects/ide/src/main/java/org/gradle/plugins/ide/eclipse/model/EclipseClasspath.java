@@ -26,7 +26,9 @@ import org.gradle.api.internal.file.FileTreeInternal;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.tasks.compile.CompilationSourceDirs;
 import org.gradle.api.plugins.JavaPlugin;
+import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.internal.jvm.JavaModuleDetector;
@@ -161,10 +163,15 @@ public class EclipseClasspath {
 
     private final Property<Boolean> containsTestFixtures;
 
+    private final SetProperty<SourceSet> testSourceSets;
+    private final ListProperty<Configuration> testConfigurations;
+
     @Inject
     public EclipseClasspath(org.gradle.api.Project project) {
         this.project = project;
         this.containsTestFixtures = project.getObjects().property(Boolean.class).convention(false);
+        this.testSourceSets = project.getObjects().setProperty(SourceSet.class);
+        this.testConfigurations = project.getObjects().listProperty(Configuration.class);
     }
 
     /**
@@ -379,5 +386,33 @@ public class EclipseClasspath {
     @Incubating
     public Property<Boolean> getContainsTestFixtures() {
         return containsTestFixtures;
+    }
+
+    /**
+     * Returns the test source sets.
+     * <p>
+     * The source directories from the returned source sets are marked with the 'test' classpath attribute on the Eclipse classpath.
+     * <p>
+     * The default value is contains the test source set plus the source sets defined in the JVM test suites.
+     *
+     * @since 7.4
+     */
+    @Incubating
+    public SetProperty<SourceSet> getTestSourceSets() {
+        return testSourceSets;
+    }
+
+    /**
+     * Returns the test configurations.
+     * <p>
+     * The dependencies from the returned configurations are marked with the 'test' classpath attribute on the Eclipse classpath.
+     * <p>
+     * The default value consists of testCompileClasspath, testRuntimeClasspath, and the dependency configurations from the JVM test suites.
+     *
+     * @since 7.4
+     */
+    @Incubating
+    public ListProperty<Configuration> getTestConfigurations() {
+        return testConfigurations;
     }
 }

@@ -199,4 +199,50 @@ class ToolingApiEclipseModelTestSourcesCrossVersionSpec extends ToolingApiSpecif
         depD.classpathAttributes.find { it.name == 'test' && it.value == 'true' }
         depD.classpathAttributes.find { it.name == 'without_test_code' && it.value == 'false' }
     }
+
+    @TargetGradleVersion(">=7.4")
+    def "Test source sets and dependency configurations are configurable"() {
+        setup:
+        buildFile << """
+            plugins {
+                id 'java-library'
+                id 'eclipse'
+            }
+
+            ${mavenCentralRepository()}
+
+            dependencies {
+                compileOnly 'com.google.guava:guava:21.0'
+                testImplementation 'junit:junit:4.13'
+            }
+
+            eclipse {
+                classpath {
+                    testSourceSets = [sourceSets.main]
+                    testConfigurations = [configurations.compileClasspath, configurations.runtimeClasspath]
+                }
+            }
+        """
+        file('src/main/java').mkdirs()
+        file('src/test/java').mkdirs()
+
+        when:
+        EclipseProject project = loadToolingModel(EclipseProject)
+        def mainSrcDir = project.sourceDirectories.find { it.path == 'src/main/java' }
+        def testSrcDir = project.sourceDirectories.find { it.path == 'src/test/java' }
+        def guava = project.classpath.find { it.file.name.contains 'guava' }
+        def junit = project.classpath.find { it.file.name.contains 'junit' }
+
+        then:
+        !hasTestAttributes(testSrcDir)
+
+        and:
+        hasTestAttributes(mainSrcDir)
+
+        and:
+        !hasTestAttributes(junit)
+
+        and:
+        hasTestAttributes(guava)
+    }
 }

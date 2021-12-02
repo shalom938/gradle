@@ -155,6 +155,7 @@ class EclipseTestDependenciesIntegrationTest extends AbstractEclipseIntegrationS
             plugins {
                 id 'java-library'
                 id 'eclipse'
+                ${fromSourceSet == 'testFixtures' ? "id 'java-test-fixtures'" : "" }
             }
 
             dependencies {
@@ -233,24 +234,73 @@ class EclipseTestDependenciesIntegrationTest extends AbstractEclipseIntegrationS
         'test'         | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'main'         | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
         'test'         | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'test'         | 'compilation-failure'   | TEST_DEPENDENCY_WITH_TEST_SOURCES // no compilation failure in Eclipse
         'test'         | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'testFixtures' | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'implementation'                   | 'java-library'       | 'main'         | 'OK'                    | DEPENDENCY_WITHOUT_TEST_SOURCES
-        'testFixtures' | 'implementation'                   | 'java-library'       | 'test'         | 'OK'                    | DEPENDENCY_WITHOUT_TEST_SOURCES
-        'testFixtures' | 'implementation'                   | 'java-library'       | 'testFixtures' | 'OK'                    | DEPENDENCY_WITHOUT_TEST_SOURCES
-        'testFixtures' | 'implementation'                   | 'java-test-fixtures' | 'main'         | 'OK'                    | DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'implementation'                   | 'java-test-fixtures' | 'test'         | 'OK'                    | DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'implementation'                   | 'java-test-fixtures' | 'testFixtures' | 'OK'                    | DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'testImplementation'               | 'java-library'       | 'main'         | 'OK'                    | TEST_DEPENDENCY_WITHOUT_TEST_SOURCES
-        'testFixtures' | 'testImplementation'               | 'java-library'       | 'test'         | 'OK'                    | TEST_DEPENDENCY_WITHOUT_TEST_SOURCES
-        'testFixtures' | 'testImplementation'               | 'java-library'       | 'testFixtures' | 'OK'                    | TEST_DEPENDENCY_WITHOUT_TEST_SOURCES
-        'testFixtures' | 'testImplementation'               | 'java-test-fixtures' | 'main'         | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'testImplementation'               | 'java-test-fixtures' | 'test'         | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'testImplementation'               | 'java-test-fixtures' | 'testFixtures' | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'implementation'                   | 'java-library'       | 'main'         | 'compilation-failure'   | DEPENDENCY_WITHOUT_TEST_SOURCES
+        'testFixtures' | 'implementation'                   | 'java-library'       | 'test'         | 'compilation-failure'   | DEPENDENCY_WITHOUT_TEST_SOURCES
+        'testFixtures' | 'implementation'                   | 'java-library'       | 'testFixtures' | 'compilation-failure'   | DEPENDENCY_WITHOUT_TEST_SOURCES
+        'testFixtures' | 'implementation'                   | 'java-test-fixtures' | 'main'         | 'compilation-failure'   | DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'implementation'                   | 'java-test-fixtures' | 'test'         | 'compilation-failure'   | DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'implementation'                   | 'java-test-fixtures' | 'testFixtures' | 'compilation-failure'   | DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'testImplementation'               | 'java-library'       | 'main'         | 'compilation-failure'   | TEST_DEPENDENCY_WITHOUT_TEST_SOURCES
+        'testFixtures' | 'testImplementation'               | 'java-library'       | 'test'         | 'compilation-failure'   | TEST_DEPENDENCY_WITHOUT_TEST_SOURCES
+        'testFixtures' | 'testImplementation'               | 'java-library'       | 'testFixtures' | 'compilation-failure'   | TEST_DEPENDENCY_WITHOUT_TEST_SOURCES
+        'testFixtures' | 'testImplementation'               | 'java-test-fixtures' | 'main'         | 'compilation-failure'   | TEST_DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'testImplementation'               | 'java-test-fixtures' | 'test'         | 'compilation-failure'   | TEST_DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'testImplementation'               | 'java-test-fixtures' | 'testFixtures' | 'compilation-failure'   | TEST_DEPENDENCY_WITH_TEST_SOURCES
         'testFixtures' | 'testImplementation testFixtures'  | 'java-library'       | 'main'         | 'invalid-configuration' | null
         'testFixtures' | 'testImplementation testFixtures'  | 'java-library'       | 'test'         | 'invalid-configuration' | null
         'testFixtures' | 'testImplementation testFixtures'  | 'java-library'       | 'testFixtures' | 'invalid-configuration' | null
-        'testFixtures' | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'main'         | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'test'         | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
-        'testFixtures' | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'testFixtures' | 'OK'                    | TEST_DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'main'         | 'compilation-failure'   | TEST_DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'test'         | 'compilation-failure'   | TEST_DEPENDENCY_WITH_TEST_SOURCES
+        'testFixtures' | 'testImplementation testFixtures'  | 'java-test-fixtures' | 'testFixtures' | 'compilation-failure'   | TEST_DEPENDENCY_WITH_TEST_SOURCES
+    }
+
+    def "can configure test dependencies"() {
+        given:
+        settingsFile << "include 'a', 'b', 'c'"
+        file('a/build.gradle') << """
+            plugins {
+                id 'eclipse'
+                id 'java-library'
+            }
+        """
+        file('b/build.gradle') << """
+            plugins {
+                id 'eclipse'
+                id 'java-library'
+            }
+        """
+        file('c/build.gradle') << """
+            plugins {
+                id 'eclipse'
+                id 'java-library'
+            }
+
+            configurations {
+                integration
+            }
+
+            dependencies {
+                integration project(':a')
+                testImplementation project(':b')
+            }
+
+            eclipse {
+                classpath {
+                    plusConfigurations += [configurations.integration]
+                    testConfigurations = [configurations.integration]
+                }
+            }
+        """
+
+        when:
+        run 'eclipse'
+
+        then:
+        def dependencyA = classpath('c').projects.find { it.name == 'a' }
+        def dependencyB = classpath('c').projects.find { it.name == 'b' }
+
+        dependencyA.assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
+        dependencyB.assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
     }
 
     private static final Closure DEPENDENCY_WITH_TEST_SOURCES = { EclipseClasspathFixture.EclipseProjectDependency d ->

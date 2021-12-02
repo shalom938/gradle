@@ -16,19 +16,20 @@
 package org.gradle.plugins.ide.eclipse
 
 import org.gradle.integtests.fixtures.ToBeFixedForConfigurationCache
-import org.junit.Test
+import org.gradle.plugins.ide.eclipse.internal.EclipsePluginConstants
 
-class EclipseTestSourcesIntegrationTest extends AbstractEclipseIntegrationTest {
+class EclipseTestSourcesIntegrationTest extends AbstractEclipseIntegrationSpec {
 
-    @Test
     @ToBeFixedForConfigurationCache
-    void "All test source folders and test dependencies are marked with test attribute"() {
-        //when
+    def "All test source folders and test dependencies are marked with test attribute"() {
+        setup:
         file('src/main/java').mkdirs()
         file('src/test/java').mkdirs()
-        runEclipseTask """
-            apply plugin: 'java'
-            apply plugin: 'eclipse'
+        buildFile << """
+            plugins {
+                id 'java'
+                id 'eclipse'
+            }
 
             ${mavenCentralRepository()}
 
@@ -37,11 +38,39 @@ class EclipseTestSourcesIntegrationTest extends AbstractEclipseIntegrationTest {
                  testImplementation "junit:junit:4.13"
             }
         """
+        when:
+        run 'eclipse'
 
-        //then
-        classpath.lib("guava-21.0.jar").assertHasNoAttribute("test", "true")
-        classpath.lib("junit-4.13.jar").assertHasAttribute("test", "true")
-        classpath.sourceDir("src/main/java").assertHasNoAttribute("test", "true")
-        classpath.sourceDir("src/test/java").assertHasAttribute("test", "true")
+        then:
+        classpath.lib("guava-21.0.jar").assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
+        classpath.lib("junit-4.13.jar").assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
+        classpath.sourceDir("src/main/java").assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
+        classpath.sourceDir("src/test/java").assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
+    }
+
+    def "Can configure test source sets"() {
+        setup:
+        file('src/main/java').mkdirs()
+        file('src/test/java').mkdirs()
+        buildFile << """
+            plugins {
+                id 'java'
+                id 'eclipse'
+            }
+
+            eclipse {
+                classpath {
+                    testSourceSes = '.*main.*'
+                }
+            }
+        """
+
+        when:
+        run 'eclipse'
+
+        then:
+        EclipseClasspathFixture classpath = classpath('.')
+        classpath.sourceDir('src/main/java').assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
+        classpath.sourceDir('src/test/java').assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
     }
 }

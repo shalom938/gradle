@@ -17,10 +17,13 @@ package org.gradle.plugins.ide.eclipse;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.gradle.api.Action;
+import org.gradle.api.ExtensiblePolymorphicDomainObjectContainer;
 import org.gradle.api.JavaVersion;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -32,17 +35,20 @@ import org.gradle.api.internal.ConventionMapping;
 import org.gradle.api.internal.IConventionAware;
 import org.gradle.api.internal.PropertiesTransformer;
 import org.gradle.api.internal.project.ProjectInternal;
+import org.gradle.api.plugins.AppliedPlugin;
 import org.gradle.api.plugins.GroovyBasePlugin;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.plugins.JavaTestFixturesPlugin;
 import org.gradle.api.plugins.WarPlugin;
+import org.gradle.api.plugins.jvm.JvmTestSuite;
 import org.gradle.api.plugins.jvm.internal.JvmEcosystemUtilities;
 import org.gradle.api.plugins.scala.ScalaBasePlugin;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.internal.component.external.model.TestFixturesSupport;
 import org.gradle.internal.xml.XmlTransformer;
 import org.gradle.plugins.ear.EarPlugin;
 import org.gradle.plugins.ide.api.PropertiesFileContentMerger;
@@ -61,10 +67,14 @@ import org.gradle.plugins.ide.eclipse.model.internal.EclipseJavaVersionMapper;
 import org.gradle.plugins.ide.internal.IdeArtifactRegistry;
 import org.gradle.plugins.ide.internal.IdePlugin;
 import org.gradle.plugins.ide.internal.configurer.UniqueProjectNameProvider;
+import org.gradle.testing.base.TestSuite;
+import org.gradle.testing.base.TestingExtension;
+import org.gradle.testing.base.plugins.TestSuiteBasePlugin;
 
 import javax.inject.Inject;
 import java.io.File;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -281,6 +291,18 @@ public class EclipsePlugin extends IdePlugin {
                         }
                     }
                 });
+
+                SourceSetContainer sourceSets = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
+                model.getClasspath().getTestSourceSets().convention(ImmutableSet.<SourceSet>builder()
+                    .addAll(model.getClasspath().getTestSourceSets().getOrElse(Collections.emptySet()))
+                    .add(sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME))
+                    .build());
+
+                model.getClasspath().getTestConfigurations().convention(ImmutableList.<Configuration>builder()
+                    .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptyList()))
+                    .add(project.getConfigurations().findByName(sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME).getCompileClasspathConfigurationName()))
+                    .add(project.getConfigurations().findByName(sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME).getRuntimeClasspathConfigurationName()))
+                    .build());
             }
         });
 
@@ -288,7 +310,42 @@ public class EclipsePlugin extends IdePlugin {
             @Override
             public void execute(JavaTestFixturesPlugin javaTestFixturesPlugin) {
                 model.getClasspath().getContainsTestFixtures().convention(true);
+
+                project.getPluginManager().withPlugin("java", new Action<AppliedPlugin>() {
+                    @Override
+                    public void execute(AppliedPlugin appliedPlugin) {
+                        SourceSetContainer sourceSets = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
+                        SourceSet sourceSet = sourceSets.getByName(TestFixturesSupport.TEST_FIXTURE_SOURCESET_NAME);
+                        model.getClasspath().getTestSourceSets().convention(ImmutableSet.<SourceSet>builder()
+                            .addAll(model.getClasspath().getTestSourceSets().getOrElse(Collections.emptySet()))
+                            .add(sourceSet)
+                            .build());
+
+                        model.getClasspath().getTestConfigurations().convention(ImmutableList.<Configuration>builder()
+                            .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptyList()))
+                            .add(project.getConfigurations().findByName(sourceSet.getCompileClasspathConfigurationName()))
+                            .add(project.getConfigurations().findByName(sourceSet.getRuntimeClasspathConfigurationName()))
+                            .build());
+                    }
+                });
             }
+        });
+
+        project.getPlugins().withType(TestSuiteBasePlugin.class, testSuiteBasePlugin -> {
+            TestingExtension testing = project.getExtensions().getByType(TestingExtension.class);
+            ExtensiblePolymorphicDomainObjectContainer<TestSuite> suites = testing.getSuites();
+            suites.withType(JvmTestSuite.class).configureEach(jvmTestSuite -> {
+                model.getClasspath().getTestSourceSets().convention(ImmutableSet.<SourceSet>builder()
+                    .addAll(model.getClasspath().getTestSourceSets().getOrElse(Collections.emptySet()))
+                    .add(jvmTestSuite.getSources())
+                    .build());
+
+                model.getClasspath().getTestConfigurations().convention(ImmutableList.<Configuration>builder()
+                    .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptyList()))
+                    .add(project.getConfigurations().findByName(jvmTestSuite.getSources().getCompileClasspathConfigurationName()))
+                    .add(project.getConfigurations().findByName(jvmTestSuite.getSources().getRuntimeClasspathConfigurationName()))
+                    .build());
+            });
         });
     }
 
