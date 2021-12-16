@@ -124,6 +124,12 @@ public class DefaultDomainObjectCollection<T> extends AbstractCollection<T> impl
     }
 
     @Override
+    public void lock() {
+        System.out.println("-> LOCKING " + this);
+        store.lock();
+    }
+
+    @Override
     public Iterator<T> iterator() {
         return new IteratorImpl(store.iterator());
     }

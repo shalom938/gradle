@@ -61,6 +61,11 @@ public class DefaultRealizableTaskCollection<T extends Task> implements TaskColl
     }
 
     @Override
+    public void lock() {
+        delegate.lock();
+    }
+
+    @Override
     public void visitDependencies(TaskDependencyResolveContext context) {
         // Task dependencies may be calculated more than once.
         // This guard is purely an optimisation.

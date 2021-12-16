@@ -36,6 +36,11 @@ public class FilteredCollection<T, S extends T> implements ElementSource<S> {
     }
 
     @Override
+    public void lock() {
+        collection.lock();
+    }
+
+    @Override
     public boolean add(S o) {
         throw new UnsupportedOperationException(String.format("Cannot add '%s' to '%s' as it is a filtered collection", o, this));
     }

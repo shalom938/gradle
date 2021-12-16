@@ -45,6 +45,10 @@ abstract class TaskContainerDelegate : TaskContainer {
     internal
     abstract val delegate: TaskContainer
 
+    override fun lock() {
+        delegate.lock()
+    }
+
     override fun contains(element: Task): Boolean =
         delegate.contains(element)
 

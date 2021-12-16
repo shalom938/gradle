@@ -55,6 +55,11 @@ abstract public class AbstractIterationOrderRetainingElementSource<T> implements
 
     protected int modCount;
 
+    @Override
+    public void lock() {
+        throw new UnsupportedOperationException();
+    }
+
     List<Element<T>> getInserted() {
         return inserted;
     }

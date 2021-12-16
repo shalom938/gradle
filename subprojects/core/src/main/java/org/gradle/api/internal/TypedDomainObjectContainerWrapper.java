@@ -54,6 +54,11 @@ public class TypedDomainObjectContainerWrapper<U> implements NamedDomainObjectCo
     }
 
     @Override
+    public void lock() {
+        parent.lock();
+    }
+
+    @Override
     public U create(String name) throws InvalidUserDataException {
         return parent.create(name, type);
     }

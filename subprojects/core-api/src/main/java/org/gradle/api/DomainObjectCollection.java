@@ -37,6 +37,9 @@ import java.util.Collection;
  * @param <T> The type of objects in this collection.
  */
 public interface DomainObjectCollection<T> extends Collection<T> {
+
+    void lock();
+
     /**
      * Adds an element to this collection, given a {@link Provider} that will provide the element when required.
      *

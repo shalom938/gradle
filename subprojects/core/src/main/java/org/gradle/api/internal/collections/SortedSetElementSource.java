@@ -28,14 +28,23 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SortedSetElementSource<T> implements ElementSource<T> {
     private final TreeSet<T> values;
     private final PendingSource<T> pending = new DefaultPendingSource<T>();
     private final MutationGuard mutationGuard = new DefaultMutationGuard();
 
+    private final AtomicBoolean locked = new AtomicBoolean();
+
     public SortedSetElementSource(Comparator<T> comparator) {
         this.values = new TreeSet<T>(comparator);
+    }
+
+    @Override
+    public void lock() {
+        realizePending();
+        locked.set(true);
     }
 
     @Override
@@ -60,7 +69,7 @@ public class SortedSetElementSource<T> implements ElementSource<T> {
 
     @Override
     public Iterator<T> iterator() {
-        pending.realizePending();
+        realizePending();
         return values.iterator();
     }
 
@@ -71,49 +80,64 @@ public class SortedSetElementSource<T> implements ElementSource<T> {
 
     @Override
     public boolean contains(Object element) {
-        pending.realizePending();
+        realizePending();
         return values.contains(element);
     }
 
     @Override
     public boolean containsAll(Collection<?> elements) {
-        pending.realizePending();
+        realizePending();
         return values.containsAll(elements);
     }
 
     @Override
     public boolean add(T element) {
+        assertNotLocked();
         return values.add(element);
+    }
+
+    private void assertNotLocked() {
+        if (locked.get()) {
+            throw new IllegalStateException("This container is locked.");
+        }
     }
 
     @Override
     public boolean addRealized(T element) {
+        assertNotLocked();
         return values.add(element);
     }
 
     @Override
     public boolean remove(Object o) {
+        assertNotLocked();
         return values.remove(o);
     }
 
     @Override
     public void clear() {
+        assertNotLocked();
         pending.clear();
         values.clear();
     }
 
     @Override
     public void realizePending() {
-        pending.realizePending();
+        if (!locked.get()) {
+            pending.realizePending();
+        }
     }
 
     @Override
     public void realizePending(Class<?> type) {
-        pending.realizePending(type);
+        if (!locked.get()) {
+            pending.realizePending(type);
+        }
     }
 
     @Override
     public boolean addPending(final ProviderInternal<? extends T> provider) {
+        assertNotLocked();
         if (provider instanceof ChangingValue) {
             Cast.<ChangingValue<T>>uncheckedNonnullCast(provider).onValueChange(previousValue -> {
                 values.remove(previousValue);
@@ -125,11 +149,13 @@ public class SortedSetElementSource<T> implements ElementSource<T> {
 
     @Override
     public boolean removePending(ProviderInternal<? extends T> provider) {
+        assertNotLocked();
         return pending.removePending(provider);
     }
 
     @Override
     public boolean addPendingCollection(final CollectionProviderInternal<T, ? extends Iterable<T>> provider) {
+        assertNotLocked();
         if (provider instanceof ChangingValue) {
             Cast.<ChangingValue<Iterable<T>>>uncheckedNonnullCast(provider).onValueChange(previousValues -> {
                 for (T value : previousValues) {
@@ -143,6 +169,7 @@ public class SortedSetElementSource<T> implements ElementSource<T> {
 
     @Override
     public boolean removePendingCollection(CollectionProviderInternal<T, ? extends Iterable<T>> provider) {
+        assertNotLocked();
         return pending.removePendingCollection(provider);
     }
 
@@ -153,6 +180,7 @@ public class SortedSetElementSource<T> implements ElementSource<T> {
 
     @Override
     public void realizeExternal(ProviderInternal<? extends T> provider) {
+        assertNotLocked();
         pending.realizeExternal(provider);
     }
 

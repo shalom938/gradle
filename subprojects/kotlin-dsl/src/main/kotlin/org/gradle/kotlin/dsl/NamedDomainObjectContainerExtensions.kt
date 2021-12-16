@@ -250,6 +250,10 @@ private constructor(
             NamedDomainObjectContainerScope(container)
     }
 
+    override fun lock() {
+        delegate.lock()
+    }
+
     override fun <U : T> register(name: String, type: Class<U>, configurationAction: Action<in U>): NamedDomainObjectProvider<U> =
         polymorphicDomainObjectContainer().register(name, type, configurationAction)
 

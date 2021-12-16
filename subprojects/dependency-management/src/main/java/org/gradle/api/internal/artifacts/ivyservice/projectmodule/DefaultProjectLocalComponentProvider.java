@@ -15,6 +15,8 @@
  */
 package org.gradle.api.internal.artifacts.ivyservice.projectmodule;
 
+import org.gradle.api.GradleException;
+import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.ModuleVersionIdentifier;
 import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
 import org.gradle.api.internal.artifacts.ImmutableModuleIdentifierFactory;
@@ -58,13 +60,19 @@ public class DefaultProjectLocalComponentProvider implements LocalComponentProvi
     }
 
     private LocalComponentMetadata getLocalComponentMetadata(ProjectState projectState, ProjectInternal project) {
-        Module module = project.getDependencyMetaDataProvider().getModule();
-        ModuleVersionIdentifier moduleVersionIdentifier = moduleIdentifierFactory.moduleWithVersion(module.getGroup(), module.getName(), module.getVersion());
-        ProjectComponentIdentifier componentIdentifier = projectState.getComponentIdentifier();
-        DefaultLocalComponentMetadata metaData = new DefaultLocalComponentMetadata(moduleVersionIdentifier, componentIdentifier, module.getStatus(), (AttributesSchemaInternal) project.getDependencies().getAttributesSchema());
-        for (ConfigurationInternal configuration : project.getConfigurations().withType(ConfigurationInternal.class)) {
-            metadataBuilder.addConfiguration(metaData, configuration);
+        try {
+            Module module = project.getDependencyMetaDataProvider().getModule();
+            ModuleVersionIdentifier moduleVersionIdentifier = moduleIdentifierFactory.moduleWithVersion(module.getGroup(), module.getName(), module.getVersion());
+            ProjectComponentIdentifier componentIdentifier = projectState.getComponentIdentifier();
+            DefaultLocalComponentMetadata metaData = new DefaultLocalComponentMetadata(moduleVersionIdentifier, componentIdentifier, module.getStatus(), (AttributesSchemaInternal) project.getDependencies().getAttributesSchema());
+            ConfigurationContainer configurations = project.getConfigurations();
+            configurations.lock();
+            for (ConfigurationInternal configuration : configurations.withType(ConfigurationInternal.class)) {
+                metadataBuilder.addConfiguration(metaData, configuration);
+            }
+            return metaData;
+        } catch (Exception e) {
+            throw new GradleException("Could not determine the dependency metadata for " + project + ".", e);
         }
-        return metaData;
     }
 }

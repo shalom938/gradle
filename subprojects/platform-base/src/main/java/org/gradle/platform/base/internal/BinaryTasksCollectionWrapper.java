@@ -37,6 +37,11 @@ public class BinaryTasksCollectionWrapper implements BinaryTasksCollection {
         this.delegate = delegate;
     }
 
+    @Override
+    public void lock() {
+        delegate.lock();
+    }
+
     public <T extends Task> T findSingleTaskWithType(Class<T> type) {
         DomainObjectSet<T> tasks = withType(type);
         if (tasks.size() == 0) {

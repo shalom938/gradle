@@ -36,6 +36,11 @@ public class DelegatingDomainObjectSet<T> implements DomainObjectSet<T> {
     }
 
     @Override
+    public void lock() {
+        backingSet.lock();
+    }
+
+    @Override
     public DomainObjectSet<T> matching(Closure spec) {
         return matching(Specs.convertClosureToSpec(spec));
     }

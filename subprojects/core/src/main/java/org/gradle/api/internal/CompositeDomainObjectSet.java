@@ -164,6 +164,13 @@ public class CompositeDomainObjectSet<T> extends DelegatingDomainObjectSet<T> im
 
         private final List<DomainObjectCollection<? extends T>> store = Lists.newLinkedList();
 
+        @Override
+        public void lock() {
+            for (DomainObjectCollection<? extends T> collection : store) {
+                collection.lock();
+            }
+        }
+
         public boolean containsCollection(DomainObjectCollection<? extends T> collection) {
             for (DomainObjectCollection<? extends T> ts : store) {
                 if (ts == collection) {

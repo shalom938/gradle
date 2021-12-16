@@ -60,4 +60,6 @@ public interface ElementSource<T> extends Iterable<T>, WithEstimatedSize, Pendin
 
     @Override
     int size();
+
+    void lock();
 }
