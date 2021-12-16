@@ -26,7 +26,6 @@ import org.gradle.api.internal.file.FileTreeInternal;
 import org.gradle.api.internal.project.ProjectInternal;
 import org.gradle.api.internal.tasks.compile.CompilationSourceDirs;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.SourceSet;
@@ -93,6 +92,12 @@ import java.util.Set;
  *
  *     //if you want to expose test classes to dependent projects
  *     containsTestFixtures = true
+ *
+ *     //customizing which Eclipse source directories should be marked as test
+ *     testSourceSets = [sourceSets.test]
+ *
+ *     //customizing which dependencies should be marked as test on the project's classpath
+ *     testConfigurations = [configurations.testCompileClasspath, configurations.testRuntimeClasspath]
  *   }
  * }
  * </pre>
@@ -164,14 +169,14 @@ public class EclipseClasspath {
     private final Property<Boolean> containsTestFixtures;
 
     private final SetProperty<SourceSet> testSourceSets;
-    private final ListProperty<Configuration> testConfigurations;
+    private final SetProperty<Configuration> testConfigurations;
 
     @Inject
     public EclipseClasspath(org.gradle.api.Project project) {
         this.project = project;
         this.containsTestFixtures = project.getObjects().property(Boolean.class).convention(false);
         this.testSourceSets = project.getObjects().setProperty(SourceSet.class);
-        this.testConfigurations = project.getObjects().listProperty(Configuration.class);
+        this.testConfigurations = project.getObjects().setProperty(Configuration.class);
     }
 
     /**
@@ -391,9 +396,13 @@ public class EclipseClasspath {
     /**
      * Returns the test source sets.
      * <p>
-     * The source directories from the returned source sets are marked with the 'test' classpath attribute on the Eclipse classpath.
+     * The source directories from the result source sets are marked with the 'test' classpath attribute on the Eclipse classpath.
      * <p>
-     * The default value is contains the test source set plus the source sets defined in the JVM test suites.
+     * The default value contains the following elements
+     * <ul>
+     *     <li>All source sets with names containing the 'test' substring (case ignored)</li>
+     *     <li>All source sets defined via the jvm-test-suite DSL</li>
+     * </ul>
      *
      * @since 7.4
      */
@@ -405,14 +414,20 @@ public class EclipseClasspath {
     /**
      * Returns the test configurations.
      * <p>
-     * The dependencies from the returned configurations are marked with the 'test' classpath attribute on the Eclipse classpath.
+     * The dependencies from the result configurations are marked with the 'test' classpath attribute on the Eclipse classpath.
      * <p>
-     * The default value consists of testCompileClasspath, testRuntimeClasspath, and the dependency configurations from the JVM test suites.
+     * The default value contains the following elements
+     * <ul>
+     *     <li>The compile and runtime configurations of the {@link #testSourceSets}, including the JVM test suite source sets</li>
+     *     <li>Other configurations with names containing the 'test' substring (case ignored)</li>
+     * </ul>
+     * <p>
+     * Note, that this property should contain resolvable configurations only.
      *
      * @since 7.4
      */
     @Incubating
-    public ListProperty<Configuration> getTestConfigurations() {
+    public SetProperty<Configuration> getTestConfigurations() {
         return testConfigurations;
     }
 }

@@ -73,11 +73,14 @@ import org.gradle.testing.base.plugins.TestSuiteBasePlugin;
 
 import javax.inject.Inject;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 /**
  * <p>A plugin which generates Eclipse files.</p>
@@ -292,19 +295,41 @@ public class EclipsePlugin extends IdePlugin {
                     }
                 });
 
+                // the java-test-fixtures plugin might not be applied at this point and gets added in another PluginContainer.withType callback
                 SourceSetContainer sourceSets = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
+                Set<SourceSet> testSourceSets = sourceSets.stream()
+                    .filter(sourceSet -> sourceSet.getName().toLowerCase(Locale.ROOT).contains("test"))
+                    .collect(Collectors.toSet());
                 model.getClasspath().getTestSourceSets().convention(ImmutableSet.<SourceSet>builder()
                     .addAll(model.getClasspath().getTestSourceSets().getOrElse(Collections.emptySet()))
-                    .add(sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME))
+                    .addAll(testSourceSets)
                     .build());
 
+                Set<Configuration> testConfigurations = testSourceSets.stream()
+                    .flatMap(sourceSet ->
+                        Arrays.asList(
+                            project.getConfigurations().findByName(sourceSet.getCompileClasspathConfigurationName()),
+                            project.getConfigurations().findByName(sourceSet.getRuntimeClasspathConfigurationName())).stream())
+                    .collect(Collectors.toSet());
                 model.getClasspath().getTestConfigurations().convention(ImmutableList.<Configuration>builder()
-                    .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptyList()))
-                    .add(project.getConfigurations().findByName(sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME).getCompileClasspathConfigurationName()))
-                    .add(project.getConfigurations().findByName(sourceSets.getByName(SourceSet.TEST_SOURCE_SET_NAME).getRuntimeClasspathConfigurationName()))
+                    .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptySet()))
+                    .addAll(testConfigurations)
                     .build());
+
+                project.getConfigurations().all(new Action<Configuration>() {
+                    @Override
+                    public void execute(Configuration configuration) {
+                        System.out.println("Configuration[name=" + configuration.getName() + ", isresolveable=" + configuration.isCanBeResolved() + "] considered for eclipse test dependency"); // TODO remove
+                        if (configuration.isCanBeResolved() || configuration.getName().toLowerCase(Locale.ROOT).contains("test")) {
+                            model.getClasspath().getTestConfigurations().convention(ImmutableList.<Configuration>builder()
+                                .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptySet()))
+                                .add(configuration)
+                                .build());
+                        }
+                    }
+                });
             }
-        });
+        }, JavaPlugin.class);
 
         project.getPlugins().withType(JavaTestFixturesPlugin.class, new Action<JavaTestFixturesPlugin>() {
             @Override
@@ -322,7 +347,7 @@ public class EclipsePlugin extends IdePlugin {
                             .build());
 
                         model.getClasspath().getTestConfigurations().convention(ImmutableList.<Configuration>builder()
-                            .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptyList()))
+                            .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptySet()))
                             .add(project.getConfigurations().findByName(sourceSet.getCompileClasspathConfigurationName()))
                             .add(project.getConfigurations().findByName(sourceSet.getRuntimeClasspathConfigurationName()))
                             .build());
@@ -341,7 +366,7 @@ public class EclipsePlugin extends IdePlugin {
                     .build());
 
                 model.getClasspath().getTestConfigurations().convention(ImmutableList.<Configuration>builder()
-                    .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptyList()))
+                    .addAll(model.getClasspath().getTestConfigurations().getOrElse(Collections.emptySet()))
                     .add(project.getConfigurations().findByName(jvmTestSuite.getSources().getCompileClasspathConfigurationName()))
                     .add(project.getConfigurations().findByName(jvmTestSuite.getSources().getRuntimeClasspathConfigurationName()))
                     .build());
