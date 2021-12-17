@@ -581,4 +581,93 @@ class ConfigurationCacheExternalProcessIntegrationTest extends AbstractConfigura
         "getExecOperations().exec"     | ExecFormatter::execSpec
         "getExecOperations().javaexec" | ExecFormatter::javaexecSpec
     }
+
+    def "using #method in task up-to-date is not a problem"(String method,
+                                                            Function<ExecFormatter, String> spec) {
+        given:
+        def formatter = execOperationsFixture.javaFormatter()
+        testDirectory.file("buildSrc/src/main/java/SneakyTask.java") << """
+            import ${DefaultTask.name};
+            import ${ExecOperations.name};
+            import ${Inject.name};
+            import ${TaskAction.name};
+            ${formatter.imports()}
+
+            public abstract class SneakyTask extends DefaultTask {
+                @Inject
+                protected abstract ExecOperations getExecOperations();
+
+                public SneakyTask() {
+                  getOutputs().upToDateWhen(t -> {
+                    ${formatter.callProcessAndPrintOutput(method, spec.apply(formatter))};
+                    return false;
+                  });
+                }
+
+                @TaskAction
+                public void doNothing() {}
+            }
+        """
+
+        buildFile("""
+            tasks.register("sneakyTask", SneakyTask) {}
+        """)
+
+        when:
+        configurationCacheRun(":sneakyTask")
+
+        then:
+        outputContains("Hello")
+
+        where:
+        method                         | spec
+        "getExecOperations().exec"     | ExecFormatter::execSpec
+        "getExecOperations().javaexec" | ExecFormatter::javaexecSpec
+    }
+
+    def "using #method in up-to-date task of buildSrc is not a problem"(String method,
+                                                                        Function<ExecFormatter, String> spec) {
+        given:
+        def formatter = execOperationsFixture.groovyFormatter()
+        testDirectory.file("buildSrc/build.gradle") << """
+            import ${DefaultTask.name};
+            import ${ExecOperations.name};
+            import ${Inject.name};
+            import ${TaskAction.name};
+            ${formatter.imports()}
+
+            public abstract class SneakyTask extends DefaultTask {
+                @Inject
+                protected abstract ExecOperations getExecOperations();
+
+                public SneakyTask() {
+                  outputs.upToDateWhen {
+                    ${formatter.callProcessAndPrintOutput(method, spec.apply(formatter))};
+                    return false;
+                  }
+                }
+
+                @TaskAction
+                public void doNothing() {}
+            }
+
+            def sneakyTask = tasks.register("sneakyTask", SneakyTask) {}
+
+            // Ensure that buildSrc compilation triggers an exec task.
+            tasks.named("classes").configure {
+                dependsOn(sneakyTask)
+            }
+        """
+
+        when:
+        configurationCacheRun(":help")
+
+        then:
+        outputContains("Hello")
+
+        where:
+        method                         | spec
+        "getExecOperations().exec"     | ExecFormatter::execSpec
+        "getExecOperations().javaexec" | ExecFormatter::javaexecSpec
+    }
 }

@@ -16,15 +16,20 @@
 
 package org.gradle.configurationcache
 
-import org.gradle.api.Task
-import org.gradle.api.execution.TaskActionListener
+import com.google.common.collect.Sets
+import org.gradle.api.internal.tasks.execution.ExecuteTaskBuildOperationType
 import org.gradle.internal.operations.BuildOperationAncestryTracker
-import org.gradle.internal.operations.BuildOperationRef
+import org.gradle.internal.operations.BuildOperationDescriptor
+import org.gradle.internal.operations.BuildOperationListener
+import org.gradle.internal.operations.BuildOperationListenerManager
 import org.gradle.internal.operations.CurrentBuildOperationRef
+import org.gradle.internal.operations.OperationFinishEvent
 import org.gradle.internal.operations.OperationIdentifier
+import org.gradle.internal.operations.OperationProgressEvent
+import org.gradle.internal.operations.OperationStartEvent
 import org.gradle.internal.service.scopes.EventScope
 import org.gradle.internal.service.scopes.Scopes
-import java.util.Objects
+import java.io.Closeable
 
 
 /**
@@ -38,29 +43,47 @@ interface TaskExecutionTracker {
 
 class DefaultTaskExecutionTracker(
     private val buildOperationAncestryTracker: BuildOperationAncestryTracker,
-) : TaskExecutionTracker, TaskActionListener {
+    private val buildOperationListenerManager: BuildOperationListenerManager,
+) : TaskExecutionTracker, Closeable {
+    private
+    class OperationListener : BuildOperationListener {
+        val currentRunningTaskOperations: MutableSet<OperationIdentifier> = Sets.newConcurrentHashSet()
+
+        override fun started(buildOperation: BuildOperationDescriptor, startEvent: OperationStartEvent) {
+            if (buildOperation.details is ExecuteTaskBuildOperationType.Details) {
+                val id = buildOperation.id ?: throw IllegalArgumentException("Task build operation $buildOperation has no valid id")
+                currentRunningTaskOperations.add(id)
+            }
+        }
+
+        override fun progress(operationIdentifier: OperationIdentifier, progressEvent: OperationProgressEvent) {
+        }
+
+        override fun finished(buildOperation: BuildOperationDescriptor, finishEvent: OperationFinishEvent) {
+            if (buildOperation.details is ExecuteTaskBuildOperationType.Details) {
+                val id = buildOperation.id ?: throw IllegalArgumentException("Task build operation $buildOperation has no valid id")
+                currentRunningTaskOperations.remove(id)
+            }
+        }
+    }
+
     private
     val currentBuildOperationRef = CurrentBuildOperationRef.instance()
 
     private
-    val currentRunningTaskOperations = HashSet<BuildOperationRef>()
+    val operationListener = OperationListener()
 
-    override fun beforeActions(task: Task) {
-        currentBuildOperationRef.get()?.let { currentRunningTaskOperations.add(it) }
+    init {
+        buildOperationListenerManager.addListener(operationListener)
     }
 
-    override fun afterActions(task: Task) {
-        currentBuildOperationRef.get()?.let { currentRunningTaskOperations.remove(it) }
+    override fun close() {
+        buildOperationListenerManager.removeListener(operationListener)
     }
 
     override fun isCurrentThreadExecutingTaskBuildOperation(): Boolean {
         val currentBuildOperationId = currentBuildOperationRef.id
-        val taskAncestorId = buildOperationAncestryTracker.findClosestMatchingAncestor(currentBuildOperationId, ::isOperationWithIdRunningTaskNow)
+        val taskAncestorId = buildOperationAncestryTracker.findClosestMatchingAncestor(currentBuildOperationId, operationListener.currentRunningTaskOperations::contains)
         return taskAncestorId.isPresent
-    }
-
-    private
-    fun isOperationWithIdRunningTaskNow(id: OperationIdentifier): Boolean {
-        return currentRunningTaskOperations.find { taskOperationRef -> Objects.equals(id, taskOperationRef.id) } != null
     }
 }

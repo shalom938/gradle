@@ -37,7 +37,6 @@ class ConfigurationCacheProblemsListenerManagerAction(
     override fun execute(manager: ListenerManager) {
         if (buildEnablement.isProblemListenerEnabledForCurrentBuild) {
             manager.addListener(serviceRegistry[ConfigurationCacheProblemsListener::class.java])
-            manager.addListener(serviceRegistry[TaskExecutionTracker::class.java])
         }
     }
 }
