@@ -128,6 +128,13 @@ This means that for the same inputs - build configuration and previous verificat
 This allows you to leverage [the verification metadata bootstrapping feature](userguide/dependency_verification.html#sec:bootstrapping-verification) as an update strategy when dependencies change in your project.
 Have a look at [the documentation](userguide/dependency_verification.html#sec:verification-update) for more details.
 
+### Improved test sources separation in the `eclipse` plugin
+
+Project dependencies now have `test=true` classpath attribute if declared in a test dependency
+Test sources and test configuration are now configurable.
+Work with `eclipse` tasks and with Buildship as well.
+Have a look at [the documentation](userguide/eclipse_plugin.html#sec:test-sources) for more details.
+
 ### Gradle Option Improvements
 
 #### Additional Daemon Debug Options
