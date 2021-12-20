@@ -297,7 +297,7 @@ Mapping Gradle projects:
 Customization
 - eclipse.classpath.containsTestFixtures: if set to true then all project dependencies targeting the project will have the without_test_sources=true classpath attribute
 - eclipse.classpath.testSourceSets defines all source sets that is mapped to test source directories in the generated Eclipse classpath
-- eclipse.classpath.testSourceSets defines all configurations that is mapped to test dependencies in  the generated Eclipse classpath
+- eclipse.classpath.testConfigurations defines all configurations that is mapped to test dependencies in  the generated Eclipse classpath
 
 Scope:
 - This section applies to both the Eclipse buildship plugin and to the built-in `eclipse` plugin

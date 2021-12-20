@@ -15,15 +15,14 @@
  */
 package org.gradle.plugins.ide.eclipse
 
-import org.apache.commons.io.FileUtils
+
 import org.gradle.integtests.fixtures.ToBeFixedForConfigurationCache
 import org.gradle.plugins.ide.eclipse.internal.EclipsePluginConstants
-import spock.lang.IgnoreRest
 
-class EclipseTestDependenciesIntegrationTest extends AbstractEclipseIntegrationSpec {
+class EclipseProjectDependencyWithoutTestCodeIntegrationTest extends AbstractEclipseIntegrationSpec {
 
     @ToBeFixedForConfigurationCache
-    def "project dependency does not leak test sources"() {
+    def "test code is not available by default"() {
         settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
             plugins {
@@ -51,7 +50,7 @@ class EclipseTestDependenciesIntegrationTest extends AbstractEclipseIntegrationS
     }
 
     @ToBeFixedForConfigurationCache
-    def "project dependency pointing to test fixture project exposes test sources"() {
+    def "test code is available if target project applies the java-test-fixtures plugin"() {
         settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
             plugins {
@@ -80,7 +79,7 @@ class EclipseTestDependenciesIntegrationTest extends AbstractEclipseIntegrationS
     }
 
     @ToBeFixedForConfigurationCache
-    def "can configure test sources via eclipse classpath"() {
+    def "test code is available if target project has the eclipse.classpath.containsTestFixtures=true configures"() {
         settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
             plugins {
@@ -114,7 +113,7 @@ class EclipseTestDependenciesIntegrationTest extends AbstractEclipseIntegrationS
     }
 
     @ToBeFixedForConfigurationCache
-    def "classpath configuration has precedence for test dependencies"() {
+    def "the eclipse.classpath.containsTestFixtures configuration has precedence over the applied java-test-fixtures plugin"() {
         settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
             plugins {
@@ -146,74 +145,5 @@ class EclipseTestDependenciesIntegrationTest extends AbstractEclipseIntegrationS
         then:
         def projectDependency = classpath('b').projects.find { it.name == 'a' }
         projectDependency.assertHasAttribute(EclipsePluginConstants.WITHOUT_TEST_CODE_ATTRIBUTE_KEY, EclipsePluginConstants.WITHOUT_TEST_CODE_ATTRIBUTE_VALUE)
-    }
-
-    def "can configure test dependencies"() {
-        given:
-        settingsFile << "include 'a', 'b', 'c'"
-        file('a/build.gradle') << """
-            plugins {
-                id 'eclipse'
-                id 'java-library'
-            }
-        """
-        file('b/build.gradle') << """
-            plugins {
-                id 'eclipse'
-                id 'java-library'
-            }
-        """
-        file('c/build.gradle') << """
-            plugins {
-                id 'eclipse'
-                id 'java-library'
-            }
-
-            configurations {
-                integration
-            }
-
-            dependencies {
-                integration project(':a')
-                testImplementation project(':b')
-            }
-
-            eclipse {
-                classpath {
-                    plusConfigurations += [configurations.integration]
-                    testConfigurations = [configurations.integration]
-                }
-            }
-        """
-
-        when:
-        run 'eclipse'
-
-        then:
-        def dependencyA = classpath('c').projects.find { it.name == 'a' }
-        def dependencyB = classpath('c').projects.find { it.name == 'b' }
-
-        dependencyA.assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
-        dependencyB.assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
-    }
-
-    private static final Closure DEPENDENCY_WITH_TEST_SOURCES = { EclipseClasspathFixture.EclipseClasspathEntry d ->
-        d.assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
-        d.assertHasAttribute(EclipsePluginConstants.WITHOUT_TEST_CODE_ATTRIBUTE_KEY, 'false')
-    }
-
-    private static final Closure DEPENDENCY_WITHOUT_TEST_SOURCES = { EclipseClasspathFixture.EclipseClasspathEntry d ->
-        d.assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
-        d.assertHasNoAttribute(EclipsePluginConstants.WITHOUT_TEST_CODE_ATTRIBUTE_KEY, 'false')
-    }
-
-    private static final Closure TEST_DEPENDENCY_WITH_TEST_SOURCES = { EclipseClasspathFixture.EclipseClasspathEntry d ->
-        d.assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
-        d.assertHasAttribute(EclipsePluginConstants.WITHOUT_TEST_CODE_ATTRIBUTE_KEY, 'false')
-    }
-
-    private static final Closure TEST_DEPENDENCY_WITHOUT_TEST_SOURCES = { EclipseClasspathFixture.EclipseClasspathEntry d ->
-        d.assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
-        d.assertHasNoAttribute(EclipsePluginConstants.WITHOUT_TEST_CODE_ATTRIBUTE_KEY, 'false')
     }
 }
