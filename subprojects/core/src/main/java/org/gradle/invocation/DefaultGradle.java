@@ -49,10 +49,12 @@ import org.gradle.execution.taskgraph.TaskExecutionGraphInternal;
 import org.gradle.initialization.ClassLoaderScopeRegistry;
 import org.gradle.internal.Cast;
 import org.gradle.internal.InternalBuildAdapter;
+import org.gradle.internal.InternalListener;
 import org.gradle.internal.MutableActionSet;
 import org.gradle.internal.build.BuildState;
 import org.gradle.internal.build.PublicBuildPath;
 import org.gradle.internal.composite.IncludedBuildInternal;
+import org.gradle.internal.deprecation.DeprecationLogger;
 import org.gradle.internal.enterprise.core.GradleEnterprisePluginManager;
 import org.gradle.internal.event.ListenerBroadcast;
 import org.gradle.internal.event.ListenerManager;
@@ -377,6 +379,10 @@ public abstract class DefaultGradle extends AbstractPluginAware implements Gradl
     }
 
     private void notifyListenerRegistration(String registrationPoint, Object listener) {
+        if (listener instanceof InternalListener || listener instanceof ProjectEvaluationListener) {
+            return;
+        }
+        DeprecationLogger.deprecateAction("Listener registration using " + registrationPoint + "()").willBecomeAnErrorInGradle8().undocumented().nagUser();
         getListenerManager().getBroadcaster(BuildScopeListenerRegistrationListener.class)
             .onBuildScopeListenerRegistration(listener, registrationPoint, this);
     }

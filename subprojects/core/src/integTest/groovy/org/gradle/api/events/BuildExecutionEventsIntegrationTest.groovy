@@ -20,8 +20,31 @@ import org.gradle.integtests.fixtures.AbstractIntegrationSpec
 import org.gradle.integtests.fixtures.UnsupportedWithConfigurationCache
 
 class BuildExecutionEventsIntegrationTest extends AbstractIntegrationSpec {
+    @UnsupportedWithConfigurationCache(because = "tests listener behaviour")
+    def "nags when TaskExecutionListener is registered via #path"() {
+        buildFile """
+            def listener = new TaskExecutionListener() {
+                void beforeExecute(Task task) { }
+                void afterExecute(Task task, TaskState state) { }
+            }
+            $path(listener)
+            task broken
+        """
 
-    @UnsupportedWithConfigurationCache
+        when:
+        executer.expectDocumentedDeprecationWarning("Listener registration using ${registrationPoint}() has been deprecated. This will fail with an error in Gradle 8.0.")
+        run("broken")
+
+        then:
+        noExceptionThrown()
+
+        where:
+        path                                        | registrationPoint
+        "gradle.addListener"                        | "Gradle.addListener"
+        "gradle.taskGraph.addTaskExecutionListener" | "TaskExecutionGraph.addTaskExecutionListener"
+    }
+
+    @UnsupportedWithConfigurationCache(because = "tests listener behaviour")
     def "events passed to any task execution listener are synchronised"() {
         settingsFile << "include 'a', 'b', 'c'"
         buildFile """

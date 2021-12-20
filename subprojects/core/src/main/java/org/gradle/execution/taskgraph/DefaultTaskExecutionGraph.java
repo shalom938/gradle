@@ -39,6 +39,8 @@ import org.gradle.execution.plan.NodeExecutor;
 import org.gradle.execution.plan.PlanExecutor;
 import org.gradle.execution.plan.TaskNode;
 import org.gradle.internal.Cast;
+import org.gradle.internal.InternalListener;
+import org.gradle.internal.deprecation.DeprecationLogger;
 import org.gradle.internal.event.ListenerBroadcast;
 import org.gradle.internal.operations.BuildOperationContext;
 import org.gradle.internal.operations.BuildOperationDescriptor;
@@ -237,6 +239,10 @@ public class DefaultTaskExecutionGraph implements TaskExecutionGraphInternal {
     }
 
     private void notifyListenerRegistration(String registrationPoint, Object listener) {
+        if (listener instanceof InternalListener) {
+            return;
+        }
+        DeprecationLogger.deprecateAction("Listener registration using " + registrationPoint + "()").willBecomeAnErrorInGradle8().undocumented().nagUser();
         buildScopeListenerRegistrationListener.onBuildScopeListenerRegistration(
             listener,
             registrationPoint,
