@@ -66,13 +66,13 @@ class DefaultConfigurationCacheProblemsListener internal constructor(
         onTaskExecutionAccessProblem(invocationDescription, task)
     }
 
-    override fun onExternalProcessStarted(command: String) {
+    override fun onExternalProcessStarted(command: String, consumer: String?) {
         if (!atConfigurationTime() || taskExecutionTracker.isCurrentThreadExecutingTaskBuildOperation()) {
             return
         }
         problems.onProblem(
             PropertyProblem(
-                userCodeApplicationContext.location(null),
+                userCodeApplicationContext.location(consumer),
                 StructuredMessage.build {
                     text("external process started ")
                     reference(command)

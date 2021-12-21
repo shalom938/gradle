@@ -16,15 +16,21 @@
 
 package org.gradle.internal.classpath;
 
+import org.codehaus.groovy.runtime.ProcessGroovyMethods;
 import org.codehaus.groovy.runtime.callsite.AbstractCallSite;
 import org.codehaus.groovy.runtime.callsite.CallSite;
 import org.codehaus.groovy.runtime.callsite.CallSiteArray;
 import org.codehaus.groovy.runtime.wrappers.Wrapper;
 
 import javax.annotation.Nullable;
+import java.io.File;
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class Instrumented {
     private static final Listener NO_OP = new Listener() {
@@ -34,6 +40,10 @@ public class Instrumented {
 
         @Override
         public void envVariableQueried(String key, @Nullable String value, String consumer) {
+        }
+
+        @Override
+        public void externalProcessStarted(String command, String consumer) {
         }
     };
 
@@ -69,6 +79,18 @@ public class Instrumented {
                     break;
                 case "getenv":
                     array.array[callSite.getIndex()] = new GetEnvCallSite(callSite);
+                    break;
+                case "exec":
+                    array.array[callSite.getIndex()] = new ExecCallSite(callSite);
+                    break;
+                case "execute":
+                    array.array[callSite.getIndex()] = new ExecuteCallSite(callSite);
+                    break;
+                case "start":
+                    array.array[callSite.getIndex()] = new ProcessBuilderStartCallSite(callSite);
+                    break;
+                case "startPipeline":
+                    array.array[callSite.getIndex()] = new ProcessBuilderStartPipelineCallSite(callSite);
                     break;
             }
         }
@@ -163,6 +185,110 @@ public class Instrumented {
         return LISTENER.get();
     }
 
+    public static Process exec(Runtime runtime, String command, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(command, consumer);
+        return runtime.exec(command);
+    }
+
+    public static Process exec(Runtime runtime, String[] command, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return runtime.exec(command);
+    }
+
+    public static Process exec(Runtime runtime, String command, String[] envp, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(command, consumer);
+        return runtime.exec(command, envp);
+    }
+
+    public static Process exec(Runtime runtime, String[] command, String[] envp, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return runtime.exec(command, envp);
+    }
+
+    public static Process exec(Runtime runtime, String command, String[] envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(command, consumer);
+        return runtime.exec(command, envp, dir);
+    }
+
+    public static Process exec(Runtime runtime, String[] command, String[] envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return runtime.exec(command, envp, dir);
+    }
+
+    public static Process execute(String command, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(command, consumer);
+        return ProcessGroovyMethods.execute(command);
+    }
+
+    public static Process execute(String[] command, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return ProcessGroovyMethods.execute(command);
+    }
+
+    public static Process execute(List<?> command, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return ProcessGroovyMethods.execute(command);
+    }
+
+    public static Process execute(String command, String[] envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(command, consumer);
+        return ProcessGroovyMethods.execute(command, envp, dir);
+    }
+
+    public static Process execute(String command, List<?> envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(command, consumer);
+        return ProcessGroovyMethods.execute(command, envp, dir);
+    }
+
+    public static Process execute(String[] command, String[] envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return ProcessGroovyMethods.execute(command, envp, dir);
+    }
+
+    public static Process execute(String[] command, List<?> envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return ProcessGroovyMethods.execute(command, envp, dir);
+    }
+
+    public static Process execute(List<?> command, String[] envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return ProcessGroovyMethods.execute(command, envp, dir);
+    }
+
+    public static Process execute(List<?> command, List<?> envp, File dir, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(command), consumer);
+        return ProcessGroovyMethods.execute(command, envp, dir);
+    }
+
+    public static Process start(ProcessBuilder builder, String consumer) throws IOException {
+        LISTENER.get().externalProcessStarted(joinCommand(builder.command()), consumer);
+        return builder.start();
+    }
+
+    @SuppressWarnings("unchecked")
+    public static List<Process> startPipeline(List<ProcessBuilder> pipeline, String consumer) throws IOException {
+        try {
+            for (ProcessBuilder builder : pipeline) {
+                LISTENER.get().externalProcessStarted(joinCommand(builder.command()), consumer);
+            }
+            Object result = ProcessBuilder.class.getMethod("startPipeline", List.class).invoke(null, pipeline);
+            return (List<Process>) result;
+        } catch (IllegalAccessException | NoSuchMethodException e) {
+            throw new NoSuchMethodError("Cannot find method ProcessBuilder.startPipeline");
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof IOException) {
+                throw (IOException) cause;
+            } else if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            } else if (cause instanceof Error) {
+                throw (Error) cause;
+            } else {
+                throw new RuntimeException("Unexpected exception thrown by ProcessBuilder.startPipeline", e);
+            }
+        }
+    }
+
     private static Object unwrap(Object obj) {
         if (obj instanceof Wrapper) {
             return ((Wrapper) obj).unwrap();
@@ -170,11 +296,23 @@ public class Instrumented {
         return obj;
     }
 
+    private static String getClassname(@Nullable Object obj) {
+        return obj != null ? obj.getClass().getName() : "null";
+    }
+
     private static String convertToString(Object arg) {
         if (arg instanceof CharSequence) {
             return ((CharSequence) arg).toString();
         }
         return (String) arg;
+    }
+
+    private static String joinCommand(String[] command) {
+        return String.join(" ", command);
+    }
+
+    private static String joinCommand(List<?> command) {
+        return command.stream().map(String::valueOf).collect(Collectors.joining(" "));
     }
 
     public interface Listener {
@@ -191,6 +329,15 @@ public class Instrumented {
          * @param consumer the name of the class that is reading the variable
          */
         void envVariableQueried(String key, @Nullable String value, String consumer);
+
+        /**
+         * Invoked when the code starts an external process. The command string with all argument is provided for reporting but its value may not be suitable to actually invoke the command because all
+         * arguments are joined together (separated by space) and there is no escaping of special characters.
+         *
+         * @param command the command used to start the process (with arguments)
+         * @param consumer the name of the class that is starting the process
+         */
+        void externalProcessStarted(String command, String consumer);
     }
 
     private static class IntegerSystemPropertyCallSite extends AbstractCallSite {
@@ -314,6 +461,234 @@ public class Instrumented {
                 return getenv(convertToString(arg1), array.owner.getName());
             }
             return super.call(receiver, arg1);
+        }
+    }
+
+    /**
+     * The call site for {@code Runtime.exec}.
+     */
+    private static class ExecCallSite extends AbstractCallSite {
+        public ExecCallSite(CallSite prev) {
+            super(prev);
+        }
+
+        @Override
+        public Object call(Object receiver, Object arg1) throws Throwable {
+            if (checkSignature(receiver, arg1, null, null)) {
+                return callExec(receiver, arg1, null, null);
+            }
+            return super.call(receiver, arg1);
+        }
+
+        @Override
+        public Object call(Object receiver, Object arg1, Object arg2) throws Throwable {
+            if (checkSignature(receiver, arg1, arg2, null)) {
+                return callExec(receiver, arg1, arg2, null);
+            }
+            return super.call(receiver, arg1, arg2);
+        }
+
+        @Override
+        public Object call(Object receiver, Object arg1, Object arg2, Object arg3) throws Throwable {
+            if (checkSignature(receiver, arg1, arg2, arg3)) {
+                return callExec(receiver, arg1, arg2, arg3);
+            }
+            return super.call(receiver, arg1, arg2, arg3);
+        }
+
+        private boolean checkSignature(@Nullable Object runtimeArg, @Nullable Object commandArg, @Nullable Object envpArg, @Nullable Object fileArg) {
+            runtimeArg = unwrap(runtimeArg);
+            commandArg = unwrap(commandArg);
+            envpArg = unwrap(envpArg);
+            fileArg = unwrap(fileArg);
+            return (runtimeArg instanceof Runtime) && (commandArg instanceof CharSequence || commandArg instanceof String[])
+                && (envpArg == null || envpArg instanceof String[])
+                && (fileArg == null || fileArg instanceof File);
+        }
+
+        private Process callExec(Object runtimeArg, Object commandArg, @Nullable Object envpArg, @Nullable Object fileArg) throws Throwable {
+            runtimeArg = unwrap(runtimeArg);
+            commandArg = unwrap(commandArg);
+            envpArg = unwrap(envpArg);
+            fileArg = unwrap(fileArg);
+
+            if (runtimeArg instanceof Runtime) {
+                Runtime runtime = (Runtime) runtimeArg;
+
+                if (fileArg == null || fileArg instanceof File) {
+                    File file = (File) fileArg;
+
+                    if (envpArg == null || envpArg instanceof String[]) {
+                        String[] envp = (String[]) envpArg;
+
+                        if (commandArg instanceof CharSequence) {
+                            String command = convertToString(commandArg);
+                            return exec(runtime, command, envp, file, array.owner.getName());
+                        } else if (commandArg instanceof String[]) {
+                            String[] command = (String[]) commandArg;
+                            return exec(runtime, command, envp, file, array.owner.getName());
+                        }
+                    }
+                }
+            }
+            throw new AssertionError(String.format("Can't find suitable Runtime.exec for %s(%s, %s, %s)",
+                getClassname(runtimeArg), getClassname(commandArg), getClassname(envpArg), getClassname(fileArg)));
+        }
+    }
+
+    /**
+     * The call site for Groovy's {@code String.execute}, {@code String[].execute}, and {@code List.execute}. This also handles {@code ProcessGroovyMethods.execute}.
+     */
+    private static class ExecuteCallSite extends AbstractCallSite {
+        public ExecuteCallSite(CallSite prev) {
+            super(prev);
+        }
+
+        // String|String[]|List.execute()
+        @Override
+        public Object call(Object receiver) throws Throwable {
+            if (checkSignature(receiver, null, null)) {
+                return callExecute(receiver, null, null);
+            }
+            return super.call(receiver);
+        }
+
+        // ProcessGroovyMethod.execute(String|String[]|List)
+        @Override
+        public Object call(Object receiver, Object arg1) throws Throwable {
+            if (receiver.equals(ProcessGroovyMethods.class) && checkSignature(arg1, null, null)) {
+                return callExecute(arg1, null, null);
+            }
+            return super.call(receiver, arg1);
+        }
+
+        // static import execute(String|String[]|List)
+        @Override
+        public Object callStatic(Class receiver, Object arg1) throws Throwable {
+            if (receiver.equals(ProcessGroovyMethods.class) && checkSignature(arg1, null, null)) {
+                return callExecute(arg1, null, null);
+            }
+            return super.callStatic(receiver, arg1);
+        }
+
+        // String|String[]|List.execute(String[]|List, File)
+        @Override
+        public Object call(Object receiver, @Nullable Object arg1, @Nullable Object arg2) throws Throwable {
+            if (checkSignature(receiver, arg1, arg2)) {
+                return callExecute(receiver, arg1, arg2);
+            }
+            return super.call(receiver, arg1, arg2);
+        }
+
+        // ProcessGroovyMethod.execute(String|String[]|List, String[]|List, File)
+        @Override
+        public Object call(Object receiver, Object arg1, @Nullable Object arg2, @Nullable Object arg3) throws Throwable {
+            if (receiver.equals(ProcessGroovyMethods.class) && checkSignature(arg1, arg2, arg3)) {
+                return callExecute(arg1, arg2, arg3);
+            }
+            return super.call(receiver, arg1, arg2, arg3);
+        }
+
+        // static import execute(String|String[]|List, String[]|List, File)
+        @Override
+        public Object callStatic(Class receiver, Object arg1, @Nullable Object arg2, @Nullable Object arg3) throws Throwable {
+            if (receiver.equals(ProcessGroovyMethods.class) && checkSignature(arg1, arg2, arg3)) {
+                return callExecute(arg1, arg2, arg3);
+            }
+            return super.callStatic(receiver, arg1, arg2, arg3);
+        }
+
+        private boolean checkSignature(@Nullable Object commandArg, @Nullable Object envpArg, @Nullable Object fileArg) {
+            commandArg = unwrap(commandArg);
+            envpArg = unwrap(envpArg);
+            fileArg = unwrap(fileArg);
+            return (commandArg instanceof CharSequence || commandArg instanceof String[] || commandArg instanceof List)
+                && (envpArg == null || envpArg instanceof String[] || envpArg instanceof List)
+                && (fileArg == null || fileArg instanceof File);
+        }
+
+        private Process callExecute(Object commandArg, @Nullable Object envpArg, @Nullable Object fileArg) throws Throwable {
+            commandArg = unwrap(commandArg);
+            envpArg = unwrap(envpArg);
+            fileArg = unwrap(fileArg);
+
+            if (fileArg == null || fileArg instanceof File) {
+                File file = (File) fileArg;
+
+                if (commandArg instanceof CharSequence) {
+                    String command = convertToString(commandArg);
+
+                    if (envpArg == null || envpArg instanceof String[]) {
+                        return execute(command, (String[]) envpArg, file, array.owner.getName());
+                    } else if (envpArg instanceof List) {
+                        return execute(command, (List<?>) envpArg, file, array.owner.getName());
+                    }
+                } else if (commandArg instanceof String[]) {
+                    String[] command = (String[]) commandArg;
+
+                    if (envpArg == null || envpArg instanceof String[]) {
+                        return execute(command, (String[]) envpArg, file, array.owner.getName());
+                    } else if (envpArg instanceof List) {
+                        return execute(command, (List<?>) envpArg, file, array.owner.getName());
+                    }
+                } else if (commandArg instanceof List) {
+                    List<?> command = (List<?>) commandArg;
+
+                    if (envpArg == null || envpArg instanceof String[]) {
+                        return execute(command, (String[]) envpArg, file, array.owner.getName());
+                    } else if (envpArg instanceof List) {
+                        return execute(command, (List<?>) envpArg, file, array.owner.getName());
+                    }
+                }
+            }
+            throw new AssertionError(String.format("Can't find suitable ProcessGroovyMethods.execute for (%s, %s, %s)", getClassname(commandArg), getClassname(envpArg), getClassname(fileArg)));
+        }
+    }
+
+    /**
+     * The call site for {@code ProcessBuilder.start}.
+     */
+    private static class ProcessBuilderStartCallSite extends AbstractCallSite {
+        public ProcessBuilderStartCallSite(CallSite prev) {
+            super(prev);
+        }
+
+        // ProcessBuilder.start()
+        @Override
+        public Object call(Object receiver) throws Throwable {
+            if (receiver instanceof ProcessBuilder) {
+                return start((ProcessBuilder) receiver, array.owner.getName());
+            }
+            return super.call(receiver);
+        }
+    }
+
+    /**
+     * The call site for {@code ProcessBuilder.start}.
+     */
+    private static class ProcessBuilderStartPipelineCallSite extends AbstractCallSite {
+        public ProcessBuilderStartPipelineCallSite(CallSite prev) {
+            super(prev);
+        }
+
+        // ProcessBuilder.startPipeline(List<ProcessBuilder> pbs)
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object call(Object receiver, Object arg1) throws Throwable {
+            if (receiver.equals(ProcessBuilder.class) && arg1 instanceof List) {
+                return startPipeline((List<ProcessBuilder>) arg1, array.owner.getName());
+            }
+            return super.call(receiver, arg1);
+        }
+
+        // ProcessBuilder.startPipeline(List<ProcessBuilder> pbs) with static import
+        @SuppressWarnings("unchecked")
+        @Override
+        public Object callStatic(Class receiver, Object arg1) throws Throwable {
+            if (receiver.equals(ProcessBuilder.class) && arg1 instanceof List) {
+                return startPipeline((List<ProcessBuilder>) arg1, array.owner.getName());
+            }
+            return super.callStatic(receiver, arg1);
         }
     }
 }
