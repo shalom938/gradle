@@ -73,3 +73,28 @@ eclipse.wtp.facet.file.withXml(Action<XmlProvider> {
 })
 // end::wtp-with-xml[]
 
+sourceSets {
+    integTest
+}
+
+configurations {
+    functional
+}
+
+// tag::test-sources[]
+eclipse {
+    classpath {
+        testSources += [sourceSets.integTest]
+        testConfigurations += [configurations.functional]
+    }
+}
+// end::test-sources[]
+
+// tag::test-fixtures[]
+eclipse {
+    classpath {
+        containsTestFixtures = true
+    }
+}
+// end::test-fixtures[]
+

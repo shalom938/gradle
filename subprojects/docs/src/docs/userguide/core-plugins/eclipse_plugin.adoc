@@ -273,31 +273,41 @@ include::sample[dir="snippets/ide/eclipse/kotlin",files="build.gradle.kts[tags=w
 ====
 
 [[sec:test-sources]]
-- Gradle has concept of source sets and dependency configuration
-- Eclipse has one classpath per project concept which implies certain limitation on how can be a Gradle project mapped to Eclipse
-- Eclipse 4.8 introduced the concept of test sources https://www.eclipse.org/eclipse/news/4.8/jdt.php#jdt-test-sources
-- Although not perfect, the main/test source set separation mapping can be handled in a better way
+Separation of test and production classpath entries
 
-Eclipse concepts:
-- Classpath consists of classpath entries: source directories, jar files, project dependencies, etc.
-- Each classpath entry can have a a list of classpath attributes, each attribute has a key-value pair
-- source directories can have test attribute with values true or false. False means the directory contains production sources, true means the directory contains test sources.
-- Production sources don't have access to test sources but test sources do have access to production sources.
-- jars can have the same test classpath attributes with similar meaning as with the source directories: test=true means the jar visible only for the test sources.
-- project dependencies have two attributes test and without_test_sources.
-- The test attribute behaves similarly as with the jar dependencies. If test=true, then the dependent project can reference only classes in the target project from the test sources
-- If without_test_sources is false, then the dependent project has visibility on the test directories of the target project. The default value is true.
+Eclipse defines only one classpath per project which implies limitations on how Gradle projects can be mapped.
+Eclipse 4.8 introduced the concept of link:https://www.eclipse.org/eclipse/news/4.8/jdt.php#jdt-test-sources[test sources].
+Although not perfect, this feature allows the Eclipse plugin to define better separation for test and non-test sources.
 
-Mapping Gradle projects:
-- jar dependencies: marked as test if the jar is present only in (resolvable) test dependency configurations
-- test dependency configurations: configurations with names that contain the substring test (case ignored) plus compile and runtime classpath configurations declared in jvm test suite DSL
-- project dependencies: marked as test if the dependency is present only in (resolvable) test dependency configurations
-- without_test_sources is false for project dependencies if the target project applies the java-test-fixtures plugin
+The Eclipse classpath consists of classpath entries: source directories, jar files, project dependencies, etc.
+Each classpath entry can have a a list of classpath attributes, which are string key-value pairs.
+There are two classpath attribute relevant for test sources: `test` and `without_test_code`, both of which can have `true` or `false` as values.
 
-Customization
-- eclipse.classpath.containsTestFixtures: if set to true then all project dependencies targeting the project will have the without_test_sources=true classpath attribute
-- eclipse.classpath.testSourceSets defines all source sets that is mapped to test source directories in the generated Eclipse classpath
-- eclipse.classpath.testConfigurations defines all configurations that is mapped to test dependencies in  the generated Eclipse classpath
+The meaning of those classpath attributes are as follows:
 
-Scope:
-- This section applies to both the Eclipse buildship plugin and to the built-in `eclipse` plugin
+- source directory: if `test=true` then it contains test sources otherwise it contains production sources. Production sources don't have access to test sources but test sources do have access to production sources.
+- jar file: if `test=true` then it is visible for test sources only.
+- project dependency: `test=true` means the classes in the target project is visible for test sources only. If `without_test_sources=false` then the test sources of the target project are also accessible.
+
+The following rules apply for the test attribute declaration when generating the Eclipse classpath:
+
+- Jar files and project dependencies have the `test=true` attribute if they are present only in test dependency configuration. By default a dependency configuration is a test dependency configuration if its name contains the 'test' substring (case ignored) or if it's declared via the JVM test suite DSL.
+- Project dependencies have the `without_test_sources=false` attribute if the target project applies the java-test-fixtures plugin.
+
+You can customize the test source sets and configurations:
+
+.Customizing test sources
+====
+include::sample[dir="snippets/ide/eclipse/groovy",files="build.gradle[tags=test-sources]"]
+include::sample[dir="snippets/ide/eclipse/kotlin",files="build.gradle.kts[tags=test-sources]"]
+====
+
+You can also customize if a project should expose test sources to upstream project dependencies via the `containsTestFixtures` property.
+
+.Customizing test fixtures
+====
+include::sample[dir="snippets/ide/eclipse/groovy",files="build.gradle[tags=test-fixtures]"]
+include::sample[dir="snippets/ide/eclipse/kotlin",files="build.gradle.kts[tags=test-fixtures]"]
+====
+
+Note, that this configuration also applies to the classpath of Buildship projects.
