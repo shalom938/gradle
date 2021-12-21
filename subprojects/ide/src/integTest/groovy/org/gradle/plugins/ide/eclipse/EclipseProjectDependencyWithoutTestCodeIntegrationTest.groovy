@@ -21,8 +21,7 @@ import org.gradle.plugins.ide.eclipse.internal.EclipsePluginConstants
 
 class EclipseProjectDependencyWithoutTestCodeIntegrationTest extends AbstractEclipseIntegrationSpec {
 
-    @ToBeFixedForConfigurationCache
-    def "test code is not available by default"() {
+    def setup() {
         settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
             plugins {
@@ -40,7 +39,10 @@ class EclipseProjectDependencyWithoutTestCodeIntegrationTest extends AbstractEcl
                 implementation project(':a')
             }
         """
+    }
 
+    @ToBeFixedForConfigurationCache
+    def "test code is not available by default"() {
         when:
         run "eclipse"
 
@@ -51,22 +53,9 @@ class EclipseProjectDependencyWithoutTestCodeIntegrationTest extends AbstractEcl
 
     @ToBeFixedForConfigurationCache
     def "test code is available if target project applies the java-test-fixtures plugin"() {
-        settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
             plugins {
-                id 'eclipse'
-                id 'java-library'
                 id 'java-test-fixtures'
-            }
-        """
-        file('b/build.gradle') << """
-            plugins {
-                id 'eclipse'
-                id 'java-library'
-            }
-
-            dependencies {
-                implementation project(':a')
             }
         """
 
@@ -80,27 +69,11 @@ class EclipseProjectDependencyWithoutTestCodeIntegrationTest extends AbstractEcl
 
     @ToBeFixedForConfigurationCache
     def "test code is available if target project has the eclipse.classpath.containsTestFixtures=true configures"() {
-        settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
-            plugins {
-                id 'eclipse'
-                id 'java-library'
-            }
-
             eclipse {
                 classpath {
                     containsTestFixtures = true
                 }
-            }
-        """
-        file('b/build.gradle') << """
-            plugins {
-                id 'eclipse'
-                id 'java-library'
-            }
-
-            dependencies {
-                implementation project(':a')
             }
         """
 
@@ -114,28 +87,15 @@ class EclipseProjectDependencyWithoutTestCodeIntegrationTest extends AbstractEcl
 
     @ToBeFixedForConfigurationCache
     def "the eclipse.classpath.containsTestFixtures configuration has precedence over the applied java-test-fixtures plugin"() {
-        settingsFile << "include 'a', 'b'"
         file('a/build.gradle') << """
             plugins {
-                id 'eclipse'
                 id 'java-test-fixtures'
-                id 'java-library'
             }
 
             eclipse {
                 classpath {
                     containsTestFixtures = false
                 }
-            }
-        """
-        file('b/build.gradle') << """
-            plugins {
-                id 'eclipse'
-                id 'java-library'
-            }
-
-            dependencies {
-                implementation project(':a')
             }
         """
 

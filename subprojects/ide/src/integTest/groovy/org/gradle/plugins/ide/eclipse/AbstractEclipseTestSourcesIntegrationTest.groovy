@@ -17,63 +17,62 @@
 package org.gradle.plugins.ide.eclipse
 
 import org.gradle.plugins.ide.eclipse.internal.EclipsePluginConstants
-import org.gradle.tooling.model.eclipse.EclipseClasspathEntry
 
 abstract class AbstractEclipseTestSourcesIntegrationTest extends AbstractEclipseIntegrationSpec {
+
+    void assertProjectDependencyHasTestAttribute(String project, String targetProject) {
+        projectHasTestAttribute(classpath(project), targetProject)
+    }
 
     void assertProjectDependencyDoesNotHaveTestAttribute(String project, String targetProject) {
         projectDoesNotHaveTestAttribute(classpath(project), targetProject)
     }
 
     void assertSourceDirectoryHasTestAttribute(String project, String targetProject) {
-        projectHasTestAttribute(classpath(project), targetProject)
+        sourceDirectoryHasTestAttribute(classpath(project), targetProject)
     }
 
     void assertSourceDirectoryDoesNotHaveTestAttribute(String path) {
         sourceDirectoryDoesNotHaveTestAttribute(classpath, path)
     }
 
-    void assertSourceDirectoryHasTestAttribute(String path) {
-        sourceDirectoryHasTestAttribute(classpath, path)
+    void assertJarDependencyHasTestAttribute(String jarName) {
+        jarHasTestAttribute(classpath, jarName)
     }
 
     void assertJarDependencyDoesNotHaveTestAttribute(String jarName) {
         jarDoesNotHaveTestAttribute(classpath, jarName)
     }
 
-    void assertJarDependencyHasTestAttribute(String jarName) {
-        jarHasTestAttribute(classpath, jarName)
+    private static void projectHasTestAttribute(EclipseClasspathFixture classpath, String targetProject) {
+        hasTestAttribute(classpath.projects.find {it.name == targetProject })
     }
 
     private static void projectDoesNotHaveTestAttribute(EclipseClasspathFixture classpath, String targetProject) {
         doesNotHaveTestAttribute(classpath.projects.find {it.name == targetProject })
     }
 
-    private static void projectHasTestAttribute(EclipseClasspathFixture classpath, String targetProject) {
-        hasTestAttribute(classpath.projects.find {it.name == targetProject })
+    private static void sourceDirectoryHasTestAttribute(EclipseClasspathFixture classpath, String path) {
+        hasTestAttribute(classpath.sourceDir(path))
     }
 
     private static void sourceDirectoryDoesNotHaveTestAttribute(EclipseClasspathFixture classpath, String path) {
         doesNotHaveTestAttribute(classpath.sourceDir(path))
     }
 
-    private static void sourceDirectoryHasTestAttribute(EclipseClasspathFixture classpath, String path) {
-        hasTestAttribute(classpath.sourceDir(path))
+    private static void jarHasTestAttribute(EclipseClasspathFixture classpath, String jarName) {
+        hasTestAttribute(classpath.lib(jarName))
     }
 
     private static void jarDoesNotHaveTestAttribute(EclipseClasspathFixture classpath, String jarName) {
         doesNotHaveTestAttribute(classpath.lib(jarName))
     }
 
-    private static void jarHasTestAttribute(EclipseClasspathFixture classpath, String jarName) {
-        hasTestAttribute(classpath.lib(jarName))
-    }
-
-    private static void doesNotHaveTestAttribute(EclipseClasspathEntry entry) {
-        entry.assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
-    }
-
-    private static void hasTestAttribute(EclipseClasspathEntry entry) {
+    private static void hasTestAttribute(EclipseClasspathFixture.EclipseClasspathEntry entry) {
         entry.assertHasAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
+    }
+
+    private static void doesNotHaveTestAttribute(EclipseClasspathFixture.EclipseClasspathEntry entry) {
+        entry.assertHasNoAttribute(EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_KEY, EclipsePluginConstants.TEST_SOURCES_ATTRIBUTE_VALUE)
     }
 }

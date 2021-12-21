@@ -60,7 +60,7 @@ class EclipseTestConfigurationsWithProjectDependenciesIntegrationTest extends Ab
         run 'eclipse'
 
         then:
-        assertSourceDirectoryHasTestAttribute('a', 'b')
+        assertProjectDependencyHasTestAttribute('a', 'b')
     }
 
 
@@ -85,7 +85,7 @@ class EclipseTestConfigurationsWithProjectDependenciesIntegrationTest extends Ab
         run 'eclipse'
 
         then:
-        assertSourceDirectoryHasTestAttribute('a', 'b')
+        assertProjectDependencyHasTestAttribute('a', 'b')
     }
 
     def "dependencies in custom source set dependency configurations are marked with test classpath attribute if the source set name contains the 'test' substring"() {
@@ -104,7 +104,7 @@ class EclipseTestConfigurationsWithProjectDependenciesIntegrationTest extends Ab
         run 'eclipse'
 
         then:
-        assertSourceDirectoryHasTestAttribute('a', 'b')
+        assertProjectDependencyHasTestAttribute('a', 'b')
     }
 
     def "dependencies in custom source set dependency configurations are not marked with test classpath attribute if the source set name does not contain the 'test' substring"() {
@@ -157,7 +157,7 @@ class EclipseTestConfigurationsWithProjectDependenciesIntegrationTest extends Ab
         run 'eclipse'
 
         then:
-        assertSourceDirectoryHasTestAttribute('a', 'b')
+        assertProjectDependencyHasTestAttribute('a', 'b')
         assertProjectDependencyDoesNotHaveTestAttribute('a', 'c')
     }
 
