@@ -130,9 +130,20 @@ Have a look at [the documentation](userguide/dependency_verification.html#sec:ve
 
 ### Improved test sources separation in the `eclipse` plugin
 
-Project dependencies now have `test=true` classpath attribute if declared in a test dependency
-Test sources and test configuration are now configurable.
-Work with `eclipse` tasks and with Buildship as well.
+The current release improves how the `eclipse` plugin defines [test sources](https://www.eclipse.org/eclipse/news/4.8/jdt.php#jdt-test-sources).
+Project dependencies defined in test configurations (like `testImplementation`) will have the  `test=true` attribute in the generated Eclipse classpath file.
+Also, the test source sets and dependency configuration are now configurable in the plugin's DSL:
+
+```
+eclipse {
+    classpath {
+        testSourceSets += [sourceSets.myTestSourceSet]
+        testConfigurations += [configuration.myTestConfiguration]
+    }
+}
+```
+
+Note, that these improvements work with Buildship as well.
 Have a look at [the documentation](userguide/eclipse_plugin.html#sec:test-sources) for more details.
 
 ### Gradle Option Improvements
