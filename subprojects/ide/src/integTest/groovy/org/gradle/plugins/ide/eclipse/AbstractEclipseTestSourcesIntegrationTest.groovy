@@ -28,8 +28,8 @@ abstract class AbstractEclipseTestSourcesIntegrationTest extends AbstractEclipse
         projectDoesNotHaveTestAttribute(classpath(project), targetProject)
     }
 
-    void assertSourceDirectoryHasTestAttribute(String project, String targetProject) {
-        sourceDirectoryHasTestAttribute(classpath(project), targetProject)
+    void assertSourceDirectoryHasTestAttribute(String path) {
+        sourceDirectoryHasTestAttribute(classpath, path)
     }
 
     void assertSourceDirectoryDoesNotHaveTestAttribute(String path) {
