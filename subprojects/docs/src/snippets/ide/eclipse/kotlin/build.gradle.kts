@@ -73,19 +73,20 @@ eclipse.wtp.facet.file.withXml(Action<XmlProvider> {
 })
 // end::wtp-with-xml[]
 
-sourceSets {
-    integTest
-}
+integTest by sourceSets.creating
+functional by configurations.creating
 
-configurations {
-    functional
+eclipse {
+    classpath {
+        plusConfigurations += functional
+    }
 }
 
 // tag::test-sources[]
 eclipse {
     classpath {
-        testSources += [sourceSets.integTest]
-        testConfigurations += [configurations.functional]
+        testSourceSets.set(testSourceSets.get() + setOf(integTest))
+        testConfigurations.set(testConfigurations.get() + setOf(functional))
     }
 }
 // end::test-sources[]

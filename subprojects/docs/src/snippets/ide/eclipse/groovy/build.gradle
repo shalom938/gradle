@@ -53,11 +53,17 @@ configurations {
     functional
 }
 
+eclipse {
+    classpath {
+        plusConfigurations += [configurations.functional]
+    }
+}
+
 // tag::test-sources[]
 eclipse {
     classpath {
-        testSources += [sourceSets.integTest]
-        testConfigurations += [configurations.functional]
+        testSourceSets = testSourceSets.get() + [sourceSets.integTest]
+        testConfigurations = testConfigurations.get() + [configurations.functional]
     }
 }
 // end::test-sources[]
